@@ -41,7 +41,7 @@ if model_type == "Regression":
 
     # Train/Test Size Slider for Regression only (10 - 50)
     test_size_display = st.sidebar.slider(
-        "Test Size (10 - 50%)", 10, 50, 20, step=1
+        "Test Size (10 - 50%)", 10, 50, step=1
     )
     test_size = test_size_display / 100  # convert to fraction for train_test_split
 
@@ -54,7 +54,7 @@ elif model_type == "Classification":
 
     # Train/Test Size Slider for Classification only (10 - 50)
     test_size_display = st.sidebar.slider(
-        "Test Size (10 - 50%)", 10, 50, 20, step=1
+        "Test Size (10 - 50%)", 10, 50, step=1
     )
     test_size = test_size_display / 100  # convert to fraction for train_test_split
 
@@ -225,3 +225,4 @@ if uploaded_file:
                 file_name="trained_model.pkl",
                 mime="application/octet-stream"
             )
+
