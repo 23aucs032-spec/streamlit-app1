@@ -213,16 +213,6 @@ if uploaded_file:
             ax.set_title("Confusion Matrix")
             st.pyplot(fig)
 
-        # ---------------------------------------------
-        # CENTERED DOWNLOAD BUTTON
-        # ---------------------------------------------
-        col_left2, col_mid2, col_right2 = st.columns([1, 2, 1])
-        with col_mid2:
-            joblib.dump(model, "trained_model.pkl")
-            st.download_button(
-                label="Download Model",
-                data=open("trained_model.pkl", "rb").read(),
-                file_name="trained_model.pkl",
-                mime="application/octet-stream"
-            )
+       
+
 
