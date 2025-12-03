@@ -8,7 +8,7 @@ from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
 from sklearn.tree import DecisionTreeRegressor, DecisionTreeClassifier
 from sklearn.svm import SVR, SVC
 from sklearn.neighbors import KNeighborsRegressor, KNeighborsClassifier
-from sklearn.cluster import KMeans, AgglomerativeClustering
+from sklearn.cluster import KMeans
 
 from sklearn.metrics import accuracy_score, mean_squared_error, r2_score, confusion_matrix
 import matplotlib.pyplot as plt
@@ -72,16 +72,6 @@ st.title("Machine Learning Platform")
 st.subheader(f"{algorithm}")
 
 # ---------------------------------------------
-# Regression Parameters
-# ---------------------------------------------
-if model_type == "Regression":
-    col1, col2 = st.columns(2)
-    with col1:
-        fit_intercept = st.radio("Fit Intercept", [True, False])
-    with col2:
-        copy_x = st.radio("Copy X", [True, False])
-
-# ---------------------------------------------
 # File Upload
 # ---------------------------------------------
 uploaded_file = st.file_uploader("Upload CSV File", type=["csv"])
@@ -124,8 +114,6 @@ if uploaded_file:
         if model_type == "Clustering":
             if algorithm == "K-Means Clustering":
                 model = KMeans(n_clusters=n_clusters, random_state=42)
-            elif algorithm == "Agglomerative Clustering":
-                model = AgglomerativeClustering(n_clusters=n_clusters)
 
             clusters = model.fit_predict(X)
             df["Cluster"] = clusters  # stored but not displayed
@@ -214,5 +202,6 @@ if uploaded_file:
             st.pyplot(fig)
 
        
+
 
 
