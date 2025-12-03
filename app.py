@@ -61,7 +61,7 @@ elif model_type == "Classification":
 else:
     algorithm = st.sidebar.selectbox(
         "Algorithms",
-        ["K-Means Clustering", "Agglomerative Clustering"]
+        ["K-Means Clustering"]
     )
     test_size = None  # Clustering doesn't use train/test split
 
@@ -202,6 +202,7 @@ if uploaded_file:
             st.pyplot(fig)
 
        
+
 
 
 
