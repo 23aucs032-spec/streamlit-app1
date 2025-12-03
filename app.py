@@ -26,10 +26,10 @@ st.set_page_config(page_title="streamlit", layout="wide")
 # ----------------------------------------------------
 # SIDEBAR OPTIONS
 # ----------------------------------------------------
-st.sidebar.title("Machine Learning Model Type")
+st.sidebar.title("Model Type")
 
 model_type = st.sidebar.selectbox(
-    "Model Type",
+    "Select Model Type",
     ["Regression", "Classification", "Clustering"]
 )
 
@@ -242,4 +242,5 @@ if uploaded_file:
             fig, ax = plt.subplots(figsize=(8,6))
             sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", ax=ax)
             st.pyplot(fig)
+
 
