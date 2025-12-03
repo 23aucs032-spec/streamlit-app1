@@ -20,16 +20,16 @@ from sklearn.preprocessing import LabelEncoder
 # ----------------------------------------------------
 # PAGE CONFIG
 # ----------------------------------------------------
-st.set_page_config(page_title="Machine Learning App", layout="wide")
+st.set_page_config(page_title="streamlit", layout="wide")
 
 
 # ----------------------------------------------------
 # SIDEBAR OPTIONS
 # ----------------------------------------------------
-st.sidebar.title("Machine Learning Options")
+st.sidebar.title("Machine Learning Model Type")
 
 model_type = st.sidebar.selectbox(
-    "Select Model Type",
+    "Model Type",
     ["Regression", "Classification", "Clustering"]
 )
 
@@ -62,8 +62,8 @@ else:
 # ----------------------------------------------------
 # MAIN UI
 # ----------------------------------------------------
-st.title("Universal Machine Learning Platform")
-st.subheader(f"Algorithm Selected: {algorithm}")
+st.title("Machine Learning Platform")
+st.subheader(f" {algorithm}")
 
 uploaded_file = st.file_uploader("Upload CSV File", type=["csv"])
 
@@ -85,7 +85,7 @@ if uploaded_file:
     for col in cat_cols:
         df[col] = labelencoder.fit_transform(df[col].astype(str))
 
-    st.write("### Processed Data")
+    st.write("Processed Data")
     st.dataframe(df)
 
     feature_cols = st.multiselect("Select Feature Columns (X)", df.columns)
@@ -104,11 +104,11 @@ if uploaded_file:
     if run_model:
 
         if len(feature_cols) < 1:
-            st.error("❌ Select at least one feature!")
+            st.error("Select at least one feature!")
             st.stop()
 
         if model_type != "Clustering" and label_col in feature_cols:
-            st.error("❌ Label column cannot be used as a feature.")
+            st.error("Label column cannot be used as a feature.")
             st.stop()
 
         X = df[feature_cols]
@@ -173,19 +173,10 @@ if uploaded_file:
             ax.set_ylabel("Predicted")
             st.pyplot(fig)
 
-        # ----------------------------------------------------
-        # CLASSIFICATION (NOW SUPPORTS HOUSE PRICE DATASET AND TITANIC)
-        # ----------------------------------------------------
         else:
 
             y = df[label_col]
 
-            # --------------------------------------------------------
-            # SAFE BINNING: Convert continuous values → classification bins
-            # - If y is numeric and has MORE unique values than bins -> use qcut
-            # - If y is numeric but has <= bins unique values -> map existing values to 0..k-1
-            # - If qcut might fail due to duplicate edges, fallback to 'duplicates="drop"'
-            # --------------------------------------------------------
             if y.dtype in ["int64", "float64"]:
                 desired_bins = 4  # default number of bins for qcut
                 unique_vals = y.nunique()
@@ -251,3 +242,4 @@ if uploaded_file:
             fig, ax = plt.subplots(figsize=(8,6))
             sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", ax=ax)
             st.pyplot(fig)
+
