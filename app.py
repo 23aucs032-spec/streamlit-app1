@@ -15,9 +15,6 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import joblib
 
-# NEW IMPORT for dendrogram
-from scipy.cluster.hierarchy import dendrogram, linkage
-
 # ---------------------------------------------
 # PAGE CONFIG
 # ---------------------------------------------
@@ -28,6 +25,7 @@ st.set_page_config(page_title="Streamlit App", layout="wide")
 # ---------------------------------------------
 st.sidebar.title("Model Type")
 
+# --- Model Type ---
 model_type = st.sidebar.selectbox(
     "Model Type",
     ["Regression", "Classification", "Clustering"]
@@ -41,8 +39,11 @@ if model_type == "Regression":
          "Decision Tree Regressor", "KNN Regressor"]
     )
 
-    test_size_display = st.sidebar.slider("Test Size (10 - 50%)", 10, 50)
-    test_size = test_size_display / 100
+    # Train/Test Size Slider for Regression only (10 - 50)
+    test_size_display = st.sidebar.slider(
+        "Test Size (10 - 50%)", 10, 50, step=1
+    )
+    test_size = test_size_display / 100  # convert to fraction for train_test_split
 
 elif model_type == "Classification":
     algorithm = st.sidebar.selectbox(
@@ -51,15 +52,18 @@ elif model_type == "Classification":
          "Decision Tree Classifier", "KNN Classifier"]
     )
 
-    test_size_display = st.sidebar.slider("Test Size (10 - 50%)", 10, 50)
-    test_size = test_size_display / 100
+    # Train/Test Size Slider for Classification only (10 - 50)
+    test_size_display = st.sidebar.slider(
+        "Test Size (10 - 50%)", 10, 50, step=1
+    )
+    test_size = test_size_display / 100  # convert to fraction for train_test_split
 
 else:
     algorithm = st.sidebar.selectbox(
         "Algorithms",
         ["K-Means Clustering", "Agglomerative Clustering"]
     )
-    test_size = None
+    test_size = None  # Clustering doesn't use train/test split
 
 # ---------------------------------------------
 # MAIN PAGE HEADING
@@ -87,95 +91,59 @@ if uploaded_file:
         n_clusters = st.number_input("Select Number of Clusters", min_value=1, max_value=20, value=3)
         label_col = None
 
-    # Submit Button
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
+    # ---------------------------------------------
+    # CENTERED SUBMIT BUTTON
+    # ---------------------------------------------
+    col_left, col_mid, col_right = st.columns([1, 2, 1])
+    with col_mid:
         submit_clicked = st.button("Submit")
 
     if submit_clicked:
-
         if len(feature_cols) < 1:
             st.error("You must select at least one feature!")
             st.stop()
-
         if model_type != "Clustering" and label_col in feature_cols:
-            st.error("Label column cannot be selected as a feature!")
+            st.error("Label column cannot be a feature!")
             st.stop()
 
         X = df[feature_cols]
 
-        # ===========================================
+        # ============================================================
         # CLUSTERING
-        # ===========================================
+        # ============================================================
         if model_type == "Clustering":
-
-            # --- K-Means ---
             if algorithm == "K-Means Clustering":
                 model = KMeans(n_clusters=n_clusters, random_state=42)
-                clusters = model.fit_predict(X)
-                df["Cluster"] = clusters
-
-                st.success("K-Means Clustering Completed Successfully!")
-                st.write(f"**Number of Clusters:** {n_clusters}")
-
-                if len(feature_cols) >= 2:
-                    fig, ax = plt.subplots(figsize=(8, 6))
-                    ax.scatter(X.iloc[:, 0], X.iloc[:, 1], c=clusters, cmap='viridis')
-                    ax.set_xlabel(feature_cols[0])
-                    ax.set_ylabel(feature_cols[1])
-                    ax.set_title(f"K-Means Cluster Visualization ({n_clusters} clusters)")
-                    st.pyplot(fig)
-                else:
-                    st.warning("Select at least 2 features to show clustering graph!")
-
-            # --- Agglomerative Clustering ---
             elif algorithm == "Agglomerative Clustering":
-                st.success("Agglomerative Clustering Completed Successfully!")
-                st.write(f"**Number of Clusters:** {n_clusters}")
-
-                # Fit Model
                 model = AgglomerativeClustering(n_clusters=n_clusters)
-                clusters = model.fit_predict(X)
-                df["Cluster"] = clusters
 
-                # ---------------------------
-                # DENDROGRAM SECTION
-                # ---------------------------
-                st.write("### Dendrogram (Hierarchical Tree)")
+            clusters = model.fit_predict(X)
+            df["Cluster"] = clusters  # stored but not displayed
 
-                linked = linkage(X, method='ward')
+            st.success("Clustering Completed Successfully!")
 
-                fig, ax = plt.subplots(figsize=(10, 6))
-                dendrogram(linked, orientation='top', distance_sort='ascending', show_leaf_counts=True)
-                ax.set_title("Agglomerative Clustering Dendrogram")
-                ax.set_xlabel("Samples")
-                ax.set_ylabel("Distance")
+            # Show number of clusters
+            st.write(f"**Number of Clusters:** {n_clusters}")
+
+            if len(feature_cols) >= 2:
+                fig, ax = plt.subplots(figsize=(8, 6))
+                scatter = ax.scatter(X.iloc[:, 0], X.iloc[:, 1], c=clusters, cmap='viridis')
+                ax.set_xlabel(feature_cols[0])
+                ax.set_ylabel(feature_cols[1])
+                ax.set_title(f"Cluster Visualization ({n_clusters} clusters)")
                 st.pyplot(fig)
+            else:
+                st.warning("Select at least 2 features to show the clustering graph!")
 
-                # Scatter plot (if 2 features)
-                if len(feature_cols) >= 2:
-                    st.write("### Cluster Visualization")
-                    fig2, ax2 = plt.subplots(figsize=(8, 6))
-                    ax2.scatter(X.iloc[:, 0], X.iloc[:, 1], c=clusters, cmap='viridis')
-                    ax2.set_xlabel(feature_cols[0])
-                    ax2.set_ylabel(feature_cols[1])
-                    ax2.set_title("Agglomerative Clustering Visualization")
-                    st.pyplot(fig2)
-                else:
-                    st.warning("Select at least 2 features to show cluster graph!")
-
-        # ===========================================
+        # ============================================================
         # REGRESSION
-        # ===========================================
+        # ============================================================
         elif model_type == "Regression":
-
             y = df[label_col]
-            X_train, X_test, y_train, y_test = train_test_split(
-                X, y, test_size=test_size, random_state=42
-            )
+            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=42)
 
             if algorithm == "Linear Regression":
-                model = LinearRegression()
+                model = LinearRegression(fit_intercept=fit_intercept, copy_X=copy_x)
             elif algorithm == "Random Forest Regressor":
                 model = RandomForestRegressor()
             elif algorithm == "Support Vector Regressor":
@@ -187,10 +155,13 @@ if uploaded_file:
 
             model.fit(X_train, y_train)
             y_pred = model.predict(X_test)
-
             st.success("Regression Model Trained Successfully!")
-            st.write(f"MSE: {mean_squared_error(y_test, y_pred)}")
-            st.write(f"R² Score: {r2_score(y_test, y_pred)}")
+
+            mse = mean_squared_error(y_test, y_pred)
+            r2 = r2_score(y_test, y_pred)
+
+            st.write(f"MSE: {mse}")
+            st.write(f"R² Score: {r2}")
 
             fig, ax = plt.subplots(figsize=(8, 6))
             ax.scatter(y_test, y_pred)
@@ -199,15 +170,12 @@ if uploaded_file:
             ax.set_title("Actual vs Predicted")
             st.pyplot(fig)
 
-        # ===========================================
+        # ============================================================
         # CLASSIFICATION
-        # ===========================================
+        # ============================================================
         else:
-
             y = df[label_col]
-            X_train, X_test, y_train, y_test = train_test_split(
-                X, y, test_size=test_size, random_state=42
-            )
+            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=42)
 
             if algorithm == "Logistic Regression":
                 model = LogisticRegression()
@@ -222,9 +190,10 @@ if uploaded_file:
 
             model.fit(X_train, y_train)
             y_pred = model.predict(X_test)
-
             st.success("Classification Model Trained Successfully!")
-            st.write(f"Accuracy: {accuracy_score(y_test, y_pred)}")
+
+            acc = accuracy_score(y_test, y_pred)
+            st.write(f"Accuracy: {acc}")
 
             cm = confusion_matrix(y_test, y_pred)
             fig, ax = plt.subplots(figsize=(8, 6))
