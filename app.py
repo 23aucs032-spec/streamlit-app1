@@ -8,7 +8,7 @@ from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
 from sklearn.tree import DecisionTreeRegressor, DecisionTreeClassifier
 from sklearn.svm import SVR, SVC
 from sklearn.neighbors import KNeighborsRegressor, KNeighborsClassifier
-from sklearn.cluster import KMeans
+from sklearn.cluster import KMeans, AgglomerativeClustering
 
 from sklearn.metrics import accuracy_score, mean_squared_error, r2_score, confusion_matrix
 import matplotlib.pyplot as plt
@@ -61,7 +61,7 @@ elif model_type == "Classification":
 else:
     algorithm = st.sidebar.selectbox(
         "Algorithms",
-        ["K-Means Clustering"]
+        ["K-Means Clustering", "Agglomerative Clustering"]
     )
     test_size = None  # Clustering doesn't use train/test split
 
@@ -114,6 +114,8 @@ if uploaded_file:
         if model_type == "Clustering":
             if algorithm == "K-Means Clustering":
                 model = KMeans(n_clusters=n_clusters, random_state=42)
+            elif algorithm == "Agglomerative Clustering":
+                model = AgglomerativeClustering(n_clusters=n_clusters)
 
             clusters = model.fit_predict(X)
             df["Cluster"] = clusters  # stored but not displayed
@@ -200,9 +202,3 @@ if uploaded_file:
             ax.set_ylabel("Actual")
             ax.set_title("Confusion Matrix")
             st.pyplot(fig)
-
-       
-
-
-
-
