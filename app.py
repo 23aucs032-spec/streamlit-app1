@@ -16,52 +16,54 @@ import seaborn as sns
 
 from sklearn.preprocessing import LabelEncoder
 
-# ---------------------------------------------
+
+# ----------------------------------------------------
 # PAGE CONFIG
-# ---------------------------------------------
+# ----------------------------------------------------
 st.set_page_config(page_title="Machine Learning App", layout="wide")
 
-# ---------------------------------------------
-# SIDEBAR
-# ---------------------------------------------
-st.sidebar.title("Model Type")
+
+# ----------------------------------------------------
+# SIDEBAR OPTIONS
+# ----------------------------------------------------
+st.sidebar.title("Machine Learning Options")
 
 model_type = st.sidebar.selectbox(
-    "Choose Model Type",
+    "Select Model Type",
     ["Regression", "Classification", "Clustering"]
 )
 
-# Algorithms
 if model_type == "Regression":
     algorithm = st.sidebar.selectbox(
-        "Algorithm",
+        "Regression Algorithm",
         ["Linear Regression", "Random Forest Regressor", "Support Vector Regressor",
          "Decision Tree Regressor", "KNN Regressor"]
     )
-    test_size_display = st.sidebar.slider("Test Size (10% - 50%)", 10, 50)
+    test_size_display = st.sidebar.slider("Test Size (%)", 10, 50)
     test_size = test_size_display / 100
 
 elif model_type == "Classification":
     algorithm = st.sidebar.selectbox(
-        "Algorithm",
+        "Classification Algorithm",
         ["Logistic Regression", "Random Forest Classifier", "Support Vector Classifier",
          "Decision Tree Classifier", "KNN Classifier"]
     )
-    test_size_display = st.sidebar.slider("Test Size (10% - 50%)", 10, 50)
+    test_size_display = st.sidebar.slider("Test Size (%)", 10, 50)
     test_size = test_size_display / 100
 
 else:
     algorithm = st.sidebar.selectbox(
-        "Algorithm",
+        "Clustering Algorithm",
         ["K-Means Clustering", "Agglomerative Clustering"]
     )
     test_size = None
 
-# ---------------------------------------------
-# MAIN PAGE
-# ---------------------------------------------
-st.title("Machine Learning Platform")
-st.subheader(f"Selected Algorithm: {algorithm}")
+
+# ----------------------------------------------------
+# MAIN UI
+# ----------------------------------------------------
+st.title("Universal Machine Learning Platform")
+st.subheader(f"Algorithm Selected: {algorithm}")
 
 uploaded_file = st.file_uploader("Upload CSV File", type=["csv"])
 
@@ -69,51 +71,51 @@ if uploaded_file:
 
     df = pd.read_csv(uploaded_file)
 
-    # CLEANING: Drop columns that cause ML issues
-    df = df.drop(columns=[c for c in ["Name", "Cabin", "Ticket"] if c in df.columns], errors='ignore')
+    # Drop problematic Titanic-like columns
+    df = df.drop(columns=[c for c in ["Name", "Cabin", "Ticket"] if c in df.columns],
+                 errors="ignore")
 
-    # Fill missing numeric values
-    numeric_cols = df.select_dtypes(include=['int64', 'float64']).columns
+    # Fill numeric NaN
+    numeric_cols = df.select_dtypes(include=["int64", "float64"]).columns
     df[numeric_cols] = df[numeric_cols].fillna(df[numeric_cols].median())
 
-    # Label Encoding for categorical columns
+    # Encode categorical
     labelencoder = LabelEncoder()
-    cat_cols = df.select_dtypes(include=['object']).columns
+    cat_cols = df.select_dtypes(include=["object"]).columns
     for col in cat_cols:
         df[col] = labelencoder.fit_transform(df[col].astype(str))
 
     st.write("### Processed Data")
     st.dataframe(df)
 
-    feature_cols = st.multiselect("Select Features (X)", df.columns)
+    feature_cols = st.multiselect("Select Feature Columns (X)", df.columns)
 
     if model_type != "Clustering":
-        label_col = st.selectbox("Select Label (Y)", df.columns)
-        n_clusters = None
+        label_col = st.selectbox("Select Label Column (Y)", df.columns)
     else:
         label_col = None
-        n_clusters = st.number_input("Number of Clusters", min_value=1, max_value=20, value=3)
+        n_clusters = st.number_input("Clusters", 1, 20, 3)
 
-    # Submit button
+    # Center button
     col1, col2, col3 = st.columns([1,2,1])
     with col2:
-        submit_clicked = st.button("Run Model")
+        run_model = st.button("Run Model")
 
-    if submit_clicked:
+    if run_model:
 
         if len(feature_cols) < 1:
-            st.error("Select at least one feature column.")
+            st.error("❌ Select at least one feature!")
             st.stop()
 
         if model_type != "Clustering" and label_col in feature_cols:
-            st.error("Label column cannot be in features.")
+            st.error("❌ Label column cannot be used as a feature.")
             st.stop()
 
         X = df[feature_cols]
 
-        # ============================================================
+        # ----------------------------------------------------
         # CLUSTERING
-        # ============================================================
+        # ----------------------------------------------------
         if model_type == "Clustering":
 
             if algorithm == "K-Means Clustering":
@@ -127,18 +129,15 @@ if uploaded_file:
             st.success("Clustering Completed Successfully!")
 
             if len(feature_cols) >= 2:
-                fig, ax = plt.subplots(figsize=(8, 6))
-                ax.scatter(X.iloc[:, 0], X.iloc[:, 1], c=clusters)
-                ax.set_xlabel(feature_cols[0])
-                ax.set_ylabel(feature_cols[1])
-                ax.set_title(f"Clustering ({n_clusters} clusters)")
+                fig, ax = plt.subplots(figsize=(8,6))
+                ax.scatter(X.iloc[:,0], X.iloc[:,1], c=clusters)
                 st.pyplot(fig)
             else:
-                st.warning("Select at least 2 features to show clustering plot.")
+                st.warning("Select at least 2 features to plot clusters.")
 
-        # ============================================================
+        # ----------------------------------------------------
         # REGRESSION
-        # ============================================================
+        # ----------------------------------------------------
         elif model_type == "Regression":
 
             y = df[label_col]
@@ -164,7 +163,7 @@ if uploaded_file:
             mse = mean_squared_error(y_test, y_pred)
             r2 = r2_score(y_test, y_pred)
 
-            st.success("Regression Model Trained Successfully!")
+            st.success("Regression Model Trained!")
             st.write(f"### MSE: {mse}")
             st.write(f"### R² Score: {r2}")
 
@@ -172,21 +171,21 @@ if uploaded_file:
             ax.scatter(y_test, y_pred)
             ax.set_xlabel("Actual")
             ax.set_ylabel("Predicted")
-            ax.set_title("Actual vs Predicted")
             st.pyplot(fig)
 
-        # ============================================================
-        # CLASSIFICATION (WITH FIX FOR CONTINUOUS LABELS)
-        # ============================================================
+        # ----------------------------------------------------
+        # CLASSIFICATION (NOW SUPPORTS HOUSE PRICE DATASET)
+        # ----------------------------------------------------
         else:
 
             y = df[label_col]
 
-            # ❗ FIX: Prevent Classification on continuous numeric labels
-            if y.dtype in ['int64', 'float64'] and y.nunique() > 20:
-                st.error("❌ Invalid Label for Classification.\n"
-                         "This label is continuous. Please switch to Regression.")
-                st.stop()
+            # --------------------------------------------------------
+            # NEW FIX: Convert continuous values → classification bins
+            # --------------------------------------------------------
+            if y.dtype in ["int64", "float64"]:
+                st.info("Label is continuous — converting to 4 classification groups.")
+                y = pd.qcut(y, q=4, labels=[0,1,2,3])
 
             X_train, X_test, y_train, y_test = train_test_split(
                 X, y, test_size=test_size, random_state=42
@@ -207,7 +206,7 @@ if uploaded_file:
             y_pred = model.predict(X_test)
 
             acc = accuracy_score(y_test, y_pred)
-            st.success("Classification Model Trained Successfully!")
+            st.success("Classification Model Trained!")
             st.write(f"### Accuracy: {acc}")
 
             cm = confusion_matrix(y_test, y_pred)
