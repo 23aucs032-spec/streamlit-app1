@@ -143,7 +143,7 @@ if uploaded_file:
             X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=42)
 
             if algorithm == "Linear Regression":
-                model = LinearRegression(fit_intercept=fit_intercept, copy_X=copy_x)
+                model = LinearRegression()
             elif algorithm == "Random Forest Regressor":
                 model = RandomForestRegressor()
             elif algorithm == "Support Vector Regressor":
