@@ -20,7 +20,7 @@ from sklearn.preprocessing import LabelEncoder
 # ----------------------------------------------------
 # PAGE CONFIG
 # ----------------------------------------------------
-st.set_page_config(page_title="streamlit", layout="wide")
+st.set_page_config(page_title="Streamlit ML App", layout="wide")
 
 
 # ----------------------------------------------------
@@ -33,6 +33,7 @@ model_type = st.sidebar.selectbox(
     ["Regression", "Classification", "Clustering"]
 )
 
+# Regression Options
 if model_type == "Regression":
     algorithm = st.sidebar.selectbox(
         "Regression Algorithm",
@@ -42,6 +43,10 @@ if model_type == "Regression":
     test_size_display = st.sidebar.slider("Test Size (%)", 10, 50)
     test_size = test_size_display / 100
 
+    if algorithm in ["Decision Tree Regressor", "Random Forest Regressor"]:
+        max_depth = st.sidebar.number_input("Max Depth", 1, 50, 5)
+
+# Classification Options
 elif model_type == "Classification":
     algorithm = st.sidebar.selectbox(
         "Classification Algorithm",
@@ -51,6 +56,10 @@ elif model_type == "Classification":
     test_size_display = st.sidebar.slider("Test Size (%)", 10, 50)
     test_size = test_size_display / 100
 
+    if algorithm in ["Decision Tree Classifier", "Random Forest Classifier"]:
+        max_depth = st.sidebar.number_input("Max Depth", 1, 50, 5)
+
+# Clustering Options
 else:
     algorithm = st.sidebar.selectbox(
         "Clustering Algorithm",
@@ -63,19 +72,22 @@ else:
 # MAIN UI
 # ----------------------------------------------------
 st.title("Machine Learning Platform")
-st.subheader(f" {algorithm}")
+st.subheader(f"{algorithm}")
 
 uploaded_file = st.file_uploader("Upload CSV File", type=["csv"])
 
+
+# ----------------------------------------------------
+# FILE PROCESSING
+# ----------------------------------------------------
 if uploaded_file:
 
     df = pd.read_csv(uploaded_file)
 
-    # Drop problematic Titanic-like columns
-    df = df.drop(columns=[c for c in ["Name", "Cabin", "Ticket"] if c in df.columns],
-                 errors="ignore")
+    # Drop Titanic-like columns
+    df = df.drop(columns=[c for c in ["Name", "Cabin", "Ticket"] if c in df.columns], errors="ignore")
 
-    # Fill numeric NaN
+    # Handle numeric NaN
     numeric_cols = df.select_dtypes(include=["int64", "float64"]).columns
     df[numeric_cols] = df[numeric_cols].fillna(df[numeric_cols].median())
 
@@ -96,19 +108,23 @@ if uploaded_file:
         label_col = None
         n_clusters = st.number_input("Clusters", 1, 20, 3)
 
-    # Center button
+    # Run Button
     col1, col2, col3 = st.columns([1,2,1])
     with col2:
-        run_model = st.button("Run Model")
+        run_model = st.button("Submit")
 
+
+    # ----------------------------------------------------
+    # RUN MODEL
+    # ----------------------------------------------------
     if run_model:
 
         if len(feature_cols) < 1:
-            st.error("Select at least one feature!")
+            st.error("Please select at least one feature column.")
             st.stop()
 
         if model_type != "Clustering" and label_col in feature_cols:
-            st.error("Label column cannot be used as a feature.")
+            st.error("Label column cannot be a feature.")
             st.stop()
 
         X = df[feature_cols]
@@ -126,14 +142,16 @@ if uploaded_file:
             clusters = model.fit_predict(X)
             df["Cluster"] = clusters
 
-            st.success("Clustering Completed Successfully!")
+            st.success("Clustering Completed!")
+            st.dataframe(df[["Cluster"]])
 
             if len(feature_cols) >= 2:
                 fig, ax = plt.subplots(figsize=(8,6))
                 ax.scatter(X.iloc[:,0], X.iloc[:,1], c=clusters)
                 st.pyplot(fig)
             else:
-                st.warning("Select at least 2 features to plot clusters.")
+                st.warning("Need at least 2 features to plot clusters.")
+
 
         # ----------------------------------------------------
         # REGRESSION
@@ -149,11 +167,11 @@ if uploaded_file:
             if algorithm == "Linear Regression":
                 model = LinearRegression()
             elif algorithm == "Random Forest Regressor":
-                model = RandomForestRegressor()
+                model = RandomForestRegressor(max_depth=max_depth, random_state=42)
             elif algorithm == "Support Vector Regressor":
                 model = SVR()
             elif algorithm == "Decision Tree Regressor":
-                model = DecisionTreeRegressor()
+                model = DecisionTreeRegressor(max_depth=max_depth)
             else:
                 model = KNeighborsRegressor()
 
@@ -163,7 +181,7 @@ if uploaded_file:
             mse = mean_squared_error(y_test, y_pred)
             r2 = r2_score(y_test, y_pred)
 
-            st.success("Regression Model Trained!")
+            st.success("Regression Completed!")
             st.write(f"### MSE: {mse}")
             st.write(f"### R² Score: {r2}")
 
@@ -173,52 +191,30 @@ if uploaded_file:
             ax.set_ylabel("Predicted")
             st.pyplot(fig)
 
+
+        # ----------------------------------------------------
+        # CLASSIFICATION
+        # ----------------------------------------------------
         else:
 
             y = df[label_col]
 
-            if y.dtype in ["int64", "float64"]:
-                desired_bins = 4  
-                unique_vals = y.nunique()
-
-                if unique_vals > desired_bins:
-                    try:
-                        y_binned = pd.qcut(y, q=desired_bins, labels=list(range(desired_bins)))
-                    except ValueError:
-                        y_binned = pd.qcut(y, q=desired_bins, labels=list(range(desired_bins)), duplicates='drop')
-                        y_binned = pd.Series(y_binned).cat.codes
-                    else:
-                        if hasattr(y_binned, "astype"):
-                            y_binned = y_binned.astype(int)
-                    y = pd.Series(y_binned, index=y.index)
-                    st.info(f"Label was continuous ({unique_vals} unique values) — converted to {y.nunique()} classes using qcut.")
-
-                    unique_sorted = sorted(y.unique())
-                    mapping = {val: idx for idx, val in enumerate(unique_sorted)}
-                    y_mapped = y.map(mapping)
-                    y = pd.Series(y_mapped, index=y.index)
-                    st.info(f"Label had {unique_vals} unique values — using direct mapping to classes: {mapping}.")
-
-            if y.dtype == 'object' or str(y.dtype).startswith('category'):
-                y = LabelEncoder().fit_transform(y.astype(str))
-                y = pd.Series(y, index=df.index)
-
-            if pd.Series(y).nunique() < 2:
-                st.error("Label has fewer than 2 classes — cannot perform classification.")
-                st.stop()
+            if y.dtype in ["int64", "float64"] and y.nunique() > 10:
+                y = pd.qcut(y, q=4, labels=[0,1,2,3])
+                y = y.astype(int)
 
             X_train, X_test, y_train, y_test = train_test_split(
                 X, y, test_size=test_size, random_state=42
             )
 
             if algorithm == "Logistic Regression":
-                model = LogisticRegression(max_iter=300)
+                model = LogisticRegression(max_iter=500)
             elif algorithm == "Random Forest Classifier":
-                model = RandomForestClassifier()
+                model = RandomForestClassifier(max_depth=max_depth, random_state=42)
             elif algorithm == "Support Vector Classifier":
                 model = SVC()
             elif algorithm == "Decision Tree Classifier":
-                model = DecisionTreeClassifier()
+                model = DecisionTreeClassifier(max_depth=max_depth)
             else:
                 model = KNeighborsClassifier()
 
@@ -226,7 +222,7 @@ if uploaded_file:
             y_pred = model.predict(X_test)
 
             acc = accuracy_score(y_test, y_pred)
-            st.success("Classification Model Trained!")
+            st.success("Classification Completed!")
             st.write(f"### Accuracy: {acc}")
 
             cm = confusion_matrix(y_test, y_pred)
