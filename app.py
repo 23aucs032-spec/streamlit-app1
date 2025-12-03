@@ -174,18 +174,56 @@ if uploaded_file:
             st.pyplot(fig)
 
         # ----------------------------------------------------
-        # CLASSIFICATION (NOW SUPPORTS HOUSE PRICE DATASET)
+        # CLASSIFICATION (NOW SUPPORTS HOUSE PRICE DATASET AND TITANIC)
         # ----------------------------------------------------
         else:
 
             y = df[label_col]
 
             # --------------------------------------------------------
-            # NEW FIX: Convert continuous values → classification bins
+            # SAFE BINNING: Convert continuous values → classification bins
+            # - If y is numeric and has MORE unique values than bins -> use qcut
+            # - If y is numeric but has <= bins unique values -> map existing values to 0..k-1
+            # - If qcut might fail due to duplicate edges, fallback to 'duplicates="drop"'
             # --------------------------------------------------------
             if y.dtype in ["int64", "float64"]:
-                st.info("Label is continuous — converting to 4 classification groups.")
-                y = pd.qcut(y, q=4, labels=[0,1,2,3])
+                desired_bins = 4  # default number of bins for qcut
+                unique_vals = y.nunique()
+
+                if unique_vals > desired_bins:
+                    # safe qcut with duplicates dropped if necessary
+                    try:
+                        y_binned = pd.qcut(y, q=desired_bins, labels=list(range(desired_bins)))
+                    except ValueError:
+                        # fallback: drop duplicate bins
+                        y_binned = pd.qcut(y, q=desired_bins, labels=list(range(desired_bins)), duplicates='drop')
+                        # if duplicates dropped, resulting categories might be fewer than desired_bins
+                        # map categories to 0..k-1
+                        y_binned = pd.Series(y_binned).cat.codes
+                    else:
+                        # convert categorical labels to int if needed
+                        if hasattr(y_binned, "astype"):
+                            y_binned = y_binned.astype(int)
+                    y = pd.Series(y_binned, index=y.index)
+                    st.info(f"Label was continuous ({unique_vals} unique values) — converted to {y.nunique()} classes using qcut.")
+                else:
+                    # Few unique values (e.g. Titanic 0/1). Map them to 0..k-1 deterministically.
+                    unique_sorted = sorted(y.unique())
+                    mapping = {val: idx for idx, val in enumerate(unique_sorted)}
+                    y_mapped = y.map(mapping)
+                    y = pd.Series(y_mapped, index=y.index)
+                    st.info(f"Label had {unique_vals} unique values — using direct mapping to classes: {mapping}.")
+
+            # At this point y is categorical (integers/strings). Ensure it's of proper type.
+            # If it's categorical dtype with strings, encode to integer labels
+            if y.dtype == 'object' or str(y.dtype).startswith('category'):
+                y = LabelEncoder().fit_transform(y.astype(str))
+                y = pd.Series(y, index=df.index)
+
+            # Final safety: ensure y has at least 2 classes
+            if pd.Series(y).nunique() < 2:
+                st.error("Label has fewer than 2 classes — cannot perform classification.")
+                st.stop()
 
             X_train, X_test, y_train, y_test = train_test_split(
                 X, y, test_size=test_size, random_state=42
