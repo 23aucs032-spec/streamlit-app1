@@ -76,14 +76,11 @@ uploaded_file = st.file_uploader("Upload CSV File", type=["csv"])
 if uploaded_file:
     df = pd.read_csv(uploaded_file)
 
-    # Drop Titanic-like columns if present
     df = df.drop(columns=[c for c in ["Name", "Cabin", "Ticket"] if c in df.columns], errors="ignore")
 
-    # Handle numeric NaN
     numeric_cols = df.select_dtypes(include=["int64", "float64"]).columns
     df[numeric_cols] = df[numeric_cols].fillna(df[numeric_cols].median())
 
-    # Encode categorical columns
     labelencoder = LabelEncoder()
     cat_cols = df.select_dtypes(include=["object"]).columns
     for col in cat_cols:
@@ -100,11 +97,12 @@ if uploaded_file:
         label_col = None
         n_clusters = st.number_input("Clusters", 1, 20, 3)
 
-    run_model = st.button("Submit")
+    # ---------- SUBMIT BUTTON CENTERED ----------
+    col1, col2, col3 = st.columns([3,2,3])
+    with col2:
+        run_model = st.button("Submit")
+    # --------------------------------------------
 
-    # ----------------------------------------------------
-    # RUN MODEL
-    # ----------------------------------------------------
     if run_model:
 
         if len(feature_cols) < 1:
@@ -132,8 +130,8 @@ if uploaded_file:
             st.dataframe(df[["Cluster"]])
 
             if len(feature_cols) >= 2:
-                fig, ax = plt.subplots(figsize=(8,6))
-                ax.scatter(X.iloc[:,0], X.iloc[:,1], c=clusters)
+                fig, ax = plt.subplots(figsize=(8, 6))
+                ax.scatter(X.iloc[:, 0], X.iloc[:, 1], c=clusters)
                 st.pyplot(fig)
             else:
                 st.warning("Need at least 2 features to plot clusters.")
@@ -142,12 +140,8 @@ if uploaded_file:
         elif model_type == "Regression":
 
             y = df[label_col]
+            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=42)
 
-            X_train, X_test, y_train, y_test = train_test_split(
-                X, y, test_size=test_size, random_state=42
-            )
-
-            # Select Regression Model
             if algorithm == "Linear Regression":
                 model = LinearRegression()
             elif algorithm == "Random Forest Regressor":
@@ -162,7 +156,6 @@ if uploaded_file:
             model.fit(X_train, y_train)
             y_pred = model.predict(X_test)
 
-            # Regression Results
             mse = mean_squared_error(y_test, y_pred)
             r2 = r2_score(y_test, y_pred)
 
@@ -170,13 +163,11 @@ if uploaded_file:
             st.write(f"### MSE: {mse}")
             st.write(f"### R² Score: {r2}")
 
-            fig, ax = plt.subplots(figsize=(8,6))
+            fig, ax = plt.subplots(figsize=(8, 6))
             ax.scatter(y_test, y_pred)
-            ax.set_xlabel("Actual")
-            ax.set_ylabel("Predicted")
             st.pyplot(fig)
 
-            # TREE VISUALIZATION ONLY FOR DECISION TREE & RANDOM FOREST
+            # Tree visualizations
             if algorithm == "Decision Tree Regressor":
                 st.subheader("Decision Tree Visualization")
                 fig = plt.figure(figsize=(20,12))
@@ -185,7 +176,6 @@ if uploaded_file:
 
             elif algorithm == "Random Forest Regressor":
                 st.subheader("Random Forest First Tree Visualization")
-                # Automatically visualize the first tree
                 tree_model = model.estimators_[0]
                 fig = plt.figure(figsize=(20,12))
                 plot_tree(tree_model, filled=True, feature_names=feature_cols)
@@ -196,16 +186,12 @@ if uploaded_file:
 
             y = df[label_col]
 
-            # Auto-bucket numeric labels if too many classes
             if y.dtype in ["int64", "float64"] and y.nunique() > 10:
-                y = pd.qcut(y, q=4, labels=[0,1,2,3])
+                y = pd.qcut(y, q=4, labels=[0, 1, 2, 3])
                 y = y.astype(int)
 
-            X_train, X_test, y_train, y_test = train_test_split(
-                X, y, test_size=test_size, random_state=42
-            )
+            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=42)
 
-            # Select Classification Model
             if algorithm == "Logistic Regression":
                 model = LogisticRegression(max_iter=500)
             elif algorithm == "Random Forest Classifier":
@@ -220,17 +206,15 @@ if uploaded_file:
             model.fit(X_train, y_train)
             y_pred = model.predict(X_test)
 
-            # ---------- ONLY CLASSIFICATION SHOWS ACCURACY ----------
             accuracy = accuracy_score(y_test, y_pred)
             st.success("Classification Completed!")
             st.write(f"### Accuracy: {accuracy}")
 
             cm = confusion_matrix(y_test, y_pred)
-            fig, ax = plt.subplots(figsize=(8,6))
-            sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", ax=ax)
+            fig, ax = plt.subplots(figsize=(8, 6))
+            sns.heatmap(cm, annot=True, cmap="Blues", fmt="d")
             st.pyplot(fig)
 
-            # TREE VISUALIZATION ONLY FOR DECISION TREE & RANDOM FOREST
             if algorithm == "Decision Tree Classifier":
                 st.subheader("Decision Tree Visualization")
                 fig = plt.figure(figsize=(20,12))
@@ -239,7 +223,7 @@ if uploaded_file:
 
             elif algorithm == "Random Forest Classifier":
                 st.subheader("Random Forest First Tree Visualization")
-                tree_model = model.estimators_[0]  # Show first tree automatically
+                tree_model = model.estimators_[0]
                 fig = plt.figure(figsize=(20,12))
                 plot_tree(tree_model, filled=True, feature_names=feature_cols, class_names=True)
                 st.pyplot(fig)
