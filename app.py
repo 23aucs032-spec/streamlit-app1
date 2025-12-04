@@ -18,7 +18,7 @@ from sklearn.preprocessing import LabelEncoder
 # ----------------------------------------------------
 # PAGE CONFIG
 # ----------------------------------------------------
-st.set_page_config(page_title="Streamlit ML App", layout="wide")
+st.set_page_config(page_title="Streamlit", layout="wide")
 
 # ----------------------------------------------------
 # SIDEBAR OPTIONS
@@ -227,3 +227,4 @@ if uploaded_file:
                 fig = plt.figure(figsize=(20,12))
                 plot_tree(tree_model, filled=True, feature_names=feature_cols, class_names=True)
                 st.pyplot(fig)
+
