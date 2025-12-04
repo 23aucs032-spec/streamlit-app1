@@ -5,7 +5,7 @@ import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LinearRegression, LogisticRegression
 from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
-from sklearn.tree import DecisionTreeRegressor, DecisionTreeClassifier
+from sklearn.tree import DecisionTreeRegressor, DecisionTreeClassifier, plot_tree
 from sklearn.svm import SVR, SVC
 from sklearn.neighbors import KNeighborsRegressor, KNeighborsClassifier
 from sklearn.cluster import KMeans, AgglomerativeClustering
@@ -13,15 +13,12 @@ from sklearn.cluster import KMeans, AgglomerativeClustering
 from sklearn.metrics import accuracy_score, mean_squared_error, r2_score, confusion_matrix
 import matplotlib.pyplot as plt
 import seaborn as sns
-
 from sklearn.preprocessing import LabelEncoder
-
 
 # ----------------------------------------------------
 # PAGE CONFIG
 # ----------------------------------------------------
 st.set_page_config(page_title="Streamlit ML App", layout="wide")
-
 
 # ----------------------------------------------------
 # SIDEBAR OPTIONS
@@ -40,8 +37,7 @@ if model_type == "Regression":
         ["Linear Regression", "Random Forest Regressor", "Support Vector Regressor",
          "Decision Tree Regressor", "KNN Regressor"]
     )
-    test_size_display = st.sidebar.slider("Test Size (%)", 10, 50)
-    test_size = test_size_display / 100
+    test_size = st.sidebar.slider("Test Size (%)", 10, 50) / 100
 
     if algorithm in ["Decision Tree Regressor", "Random Forest Regressor"]:
         max_depth = st.sidebar.number_input("Max Depth", 1, 50, 5)
@@ -53,8 +49,7 @@ elif model_type == "Classification":
         ["Logistic Regression", "Random Forest Classifier", "Support Vector Classifier",
          "Decision Tree Classifier", "KNN Classifier"]
     )
-    test_size_display = st.sidebar.slider("Test Size (%)", 10, 50)
-    test_size = test_size_display / 100
+    test_size = st.sidebar.slider("Test Size (%)", 10, 50) / 100
 
     if algorithm in ["Decision Tree Classifier", "Random Forest Classifier"]:
         max_depth = st.sidebar.number_input("Max Depth", 1, 50, 5)
@@ -67,7 +62,6 @@ else:
     )
     test_size = None
 
-
 # ----------------------------------------------------
 # MAIN UI
 # ----------------------------------------------------
@@ -76,22 +70,20 @@ st.subheader(f"{algorithm}")
 
 uploaded_file = st.file_uploader("Upload CSV File", type=["csv"])
 
-
 # ----------------------------------------------------
 # FILE PROCESSING
 # ----------------------------------------------------
 if uploaded_file:
-
     df = pd.read_csv(uploaded_file)
 
-    # Drop Titanic-like columns
+    # Drop Titanic-like columns if present
     df = df.drop(columns=[c for c in ["Name", "Cabin", "Ticket"] if c in df.columns], errors="ignore")
 
     # Handle numeric NaN
     numeric_cols = df.select_dtypes(include=["int64", "float64"]).columns
     df[numeric_cols] = df[numeric_cols].fillna(df[numeric_cols].median())
 
-    # Encode categorical
+    # Encode categorical columns
     labelencoder = LabelEncoder()
     cat_cols = df.select_dtypes(include=["object"]).columns
     for col in cat_cols:
@@ -108,11 +100,7 @@ if uploaded_file:
         label_col = None
         n_clusters = st.number_input("Clusters", 1, 20, 3)
 
-    # Run Button
-    col1, col2, col3 = st.columns([1,2,1])
-    with col2:
-        run_model = st.button("Submit")
-
+    run_model = st.button("Submit")
 
     # ----------------------------------------------------
     # RUN MODEL
@@ -129,9 +117,7 @@ if uploaded_file:
 
         X = df[feature_cols]
 
-        # ----------------------------------------------------
-        # CLUSTERING
-        # ----------------------------------------------------
+        # -------------------- CLUSTERING --------------------
         if model_type == "Clustering":
 
             if algorithm == "K-Means Clustering":
@@ -152,10 +138,7 @@ if uploaded_file:
             else:
                 st.warning("Need at least 2 features to plot clusters.")
 
-
-        # ----------------------------------------------------
-        # REGRESSION
-        # ----------------------------------------------------
+        # -------------------- REGRESSION --------------------
         elif model_type == "Regression":
 
             y = df[label_col]
@@ -164,6 +147,7 @@ if uploaded_file:
                 X, y, test_size=test_size, random_state=42
             )
 
+            # Select Regression Model
             if algorithm == "Linear Regression":
                 model = LinearRegression()
             elif algorithm == "Random Forest Regressor":
@@ -178,6 +162,7 @@ if uploaded_file:
             model.fit(X_train, y_train)
             y_pred = model.predict(X_test)
 
+            # Regression Results
             mse = mean_squared_error(y_test, y_pred)
             r2 = r2_score(y_test, y_pred)
 
@@ -191,14 +176,27 @@ if uploaded_file:
             ax.set_ylabel("Predicted")
             st.pyplot(fig)
 
+            # TREE VISUALIZATION ONLY FOR DECISION TREE & RANDOM FOREST
+            if algorithm == "Decision Tree Regressor":
+                st.subheader("Decision Tree Visualization")
+                fig = plt.figure(figsize=(20,12))
+                plot_tree(model, filled=True, feature_names=feature_cols)
+                st.pyplot(fig)
 
-        # ----------------------------------------------------
-        # CLASSIFICATION
-        # ----------------------------------------------------
+            elif algorithm == "Random Forest Regressor":
+                st.subheader("Random Forest First Tree Visualization")
+                # Automatically visualize the first tree
+                tree_model = model.estimators_[0]
+                fig = plt.figure(figsize=(20,12))
+                plot_tree(tree_model, filled=True, feature_names=feature_cols)
+                st.pyplot(fig)
+
+        # -------------------- CLASSIFICATION --------------------
         else:
 
             y = df[label_col]
 
+            # Auto-bucket numeric labels if too many classes
             if y.dtype in ["int64", "float64"] and y.nunique() > 10:
                 y = pd.qcut(y, q=4, labels=[0,1,2,3])
                 y = y.astype(int)
@@ -207,6 +205,7 @@ if uploaded_file:
                 X, y, test_size=test_size, random_state=42
             )
 
+            # Select Classification Model
             if algorithm == "Logistic Regression":
                 model = LogisticRegression(max_iter=500)
             elif algorithm == "Random Forest Classifier":
@@ -221,11 +220,26 @@ if uploaded_file:
             model.fit(X_train, y_train)
             y_pred = model.predict(X_test)
 
-            acc = accuracy_score(y_test, y_pred)
+            # ---------- ONLY CLASSIFICATION SHOWS ACCURACY ----------
+            accuracy = accuracy_score(y_test, y_pred)
             st.success("Classification Completed!")
-            st.write(f"### Accuracy: {acc}")
+            st.write(f"### Accuracy: {accuracy}")
 
             cm = confusion_matrix(y_test, y_pred)
             fig, ax = plt.subplots(figsize=(8,6))
             sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", ax=ax)
             st.pyplot(fig)
+
+            # TREE VISUALIZATION ONLY FOR DECISION TREE & RANDOM FOREST
+            if algorithm == "Decision Tree Classifier":
+                st.subheader("Decision Tree Visualization")
+                fig = plt.figure(figsize=(20,12))
+                plot_tree(model, filled=True, feature_names=feature_cols, class_names=True)
+                st.pyplot(fig)
+
+            elif algorithm == "Random Forest Classifier":
+                st.subheader("Random Forest First Tree Visualization")
+                tree_model = model.estimators_[0]  # Show first tree automatically
+                fig = plt.figure(figsize=(20,12))
+                plot_tree(tree_model, filled=True, feature_names=feature_cols, class_names=True)
+                st.pyplot(fig)
